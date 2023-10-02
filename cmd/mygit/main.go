@@ -65,9 +65,7 @@ func GitHashObject(filename string) error {
 		return errors.New(fmt.Sprintf("Error writing file: %s\n", err))
 	}
 	compressData.Close()
-	hash := sha1.New()
-	hash.Write(data)
-	sum := hash.Sum(nil)
+	sum := sha1.Sum(data)
 	key := strings.ReplaceAll(string(fmt.Sprintf("% x\n", sum)), " ", "")
 	key = strings.ReplaceAll(key, "\n", "")
 	key = strings.ReplaceAll(key, "$", "")
