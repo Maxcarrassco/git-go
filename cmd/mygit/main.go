@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"compress/zlib"
+	"crypto/sha1"
 	"errors"
 	"fmt"
 	"io"
@@ -49,6 +50,41 @@ func GitCatFile(hash, flag string) error {
 	return nil
 }
 
+func GitHashObject(filename string) error {
+	file, err := os.ReadFile(filename)
+	if err != nil {
+		return errors.New(fmt.Sprintf("Error reading compress file: %s\n", err))
+	}
+	f_len := len(file)
+	var buf bytes.Buffer
+	content := string(file)
+	data := []byte(fmt.Sprintf("blob %d\x00%s", f_len, content))
+	compressData := zlib.NewWriter(&buf)
+	_, err = compressData.Write(data)
+	if err != nil {
+		return errors.New(fmt.Sprintf("Error writing file: %s\n", err))
+	}
+	compressData.Close()
+	hash := sha1.New()
+	hash.Write(data)
+	sum := hash.Sum(nil)
+	key := strings.ReplaceAll(string(fmt.Sprintf("% x\n", sum)), " ", "")
+	key = strings.ReplaceAll(key, "\n", "")
+	key = strings.ReplaceAll(key, "$", "")
+	filePath := fmt.Sprintf(".git/objects/%s/%s", key[:2], key[2:])
+	os.MkdirAll(".git/objects/"+key[:2], 0755)
+	f, err := os.Create(filePath)
+	if err != nil {
+		return errors.New(fmt.Sprintf("Error writing file: %s\n", err))
+	}
+	_, err = f.Write(buf.Bytes())
+	if err != nil {
+		return errors.New(fmt.Sprintf("Error writing file: %s\n", err))
+	}
+	fmt.Println(key)
+	return nil
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Fprintf(os.Stderr, "usage: mygit <command> [<args>...]\n")
@@ -63,6 +99,11 @@ func main() {
 		}
 	case "cat-file":
 		err := GitCatFile(os.Args[3], os.Args[2])
+		if err != nil {
+			fmt.Fprint(os.Stderr, err.Error())
+		}
+	case "hash-object":
+		err := GitHashObject(os.Args[3])
 		if err != nil {
 			fmt.Fprint(os.Stderr, err.Error())
 		}
