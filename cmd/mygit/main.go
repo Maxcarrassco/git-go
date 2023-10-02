@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 // Usage: your_git.sh <command> <arg1> <arg2> ...
@@ -29,16 +30,21 @@ func GitCatFile(hash, flag string) error {
 	filePath := fmt.Sprintf(".git/objects/%s/%s", hash[:2], hash[2:])
 	file, err := os.ReadFile(filePath)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Error reading file: %s\n", err))
+		return errors.New(fmt.Sprintf("Error reading compress file: %s\n", err))
 	}
 	b := bytes.NewReader(file)
 	data, err := zlib.NewReader(b)
+	defer data.Close()
 	if err != nil {
 		return errors.New(fmt.Sprintf("Error uncompressing file: %s\n", err))
 	}
 	if flag == "-p" {
-		io.Copy(os.Stdout, data)
-		data.Close()
+		data, err := io.ReadAll(data)
+		if err != nil {
+			return errors.New(fmt.Sprintf("Error reading uncompress file: %s\n", err))
+		}
+		str := strings.Split(string(data), "\x00")
+		fmt.Print(str[1])
 	}
 	return nil
 }
